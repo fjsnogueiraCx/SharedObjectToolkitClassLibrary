@@ -16,7 +16,7 @@ This lib provide :
 * Native buffer manipulations
 * Stream like buffer classes
 * Fast Binary Serializer / Deserializer
-* 
+
 ## Large Object Repository
 
 Based on a mapping of memory blocks and objects, this technic permit to virtually manipulate huge object collections. Each object had a pointer, and fields values are stored in a single block of memory, preserialized. For variable lenght value like strings, the block is expended or shrinked when the value changed. It include MVCC (Multi Value CoherencyControl), and object are immutable. For this reasons, there's no lock at all. Threads can access to object, read it and modify it in parallel, without any corrupted object state.

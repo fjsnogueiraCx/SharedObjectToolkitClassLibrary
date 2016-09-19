@@ -1,102 +1,18 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using System.Threading;
+﻿using System.Threading;
 using SharedObjectToolkitClassLibrary.Memory;
 
 namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
-    [System.Runtime.InteropServices.StructLayout(LayoutKind.Sequential)]
-    public unsafe struct SegmentHeader {
-        public static readonly int SIZE = sizeof(SegmentHeader);
-        public int BlockIndex;
-        public int PtrSize;
-        public int BlocksSize;
-        public int SegmentIndex;
-
-        public int GetPtrSize(byte* ptr) {
-            return ((SegmentHeader*)(ptr - SIZE))->PtrSize;
-        }
-
-        public void CheckCoherency() {
-            if (BlockIndex < 0 || PtrSize < 0 || BlocksSize < 0 || SegmentIndex < 0 || SegmentIndex > MemoryAllocator.SEGMENT_COUNT)
-                throw new Exception("Bad Memory Block Header.");
-        }
-
-        public void Invalidate() {
-            BlockIndex = PtrSize = BlocksSize = SegmentIndex = -1;
-        }
-    }
-
-    public unsafe struct MemorySegment {
-        private LinkedIndexPool _blockPool;
-        private int _blocksSize;
-        private int _segmentIndex;
-        private int _physicalBlockSize;
-        private int _blockCount;
-        private int _bufferSize;
-        private byte* _data;
-        //private GCHandle _memeory;
-        private int _freeBlocks;
-
-        public void Build(int segmentSize, int blockSize, int segmentIndex, out int realBlockedMemory) {
-            // -------- Who i am ?
-            _blocksSize = blockSize;
-            _segmentIndex = segmentIndex;
-            // -------- Compute
-            _blockCount = segmentSize / blockSize;
-            _freeBlocks = _blockCount;
-            _physicalBlockSize = SegmentHeader.SIZE + blockSize;
-            // -------- Allocate
-            _blockPool = new LinkedIndexPool(_blockCount, 2);
-            _bufferSize = _physicalBlockSize * (_blockCount + 1);
-            //_memory = GCHandle.Alloc(new byte[_bufferSize], GCHandleType.Pinned);
-            _data = (byte*)Marshal.AllocHGlobal(_bufferSize).ToPointer();
-            realBlockedMemory = _bufferSize;
-        }
-
-        public void Dispose(out int realReleasedMemory) {
-            realReleasedMemory = 0;
-            if (_blockPool != null) {
-                _blockPool.Dispose();
-                //_memory.Free();
-                Marshal.FreeHGlobal(new IntPtr(_data));
-                realReleasedMemory = _bufferSize;
-            }
-        }
-
-        public byte* Malloc(int size) {
-            int idx = _blockPool.Pop();
-            var ptr = &_data[idx * _physicalBlockSize];
-            var header = (SegmentHeader*)ptr;
-            header->BlockIndex = idx;
-            header->PtrSize = size;
-            header->BlocksSize = _blocksSize;
-            header->SegmentIndex = _segmentIndex;
-            Interlocked.Decrement(ref _freeBlocks);
-            return ptr + SegmentHeader.SIZE;
-        }
-
-        public void Free(byte* ptr) {
-            var header = (SegmentHeader*)(ptr - SegmentHeader.SIZE);
-            _blockPool.Push(header->BlockIndex);
-            header->Invalidate();
-            Interlocked.Increment(ref _freeBlocks);
-        }
-
-        public int FreeBlocks { get { return _freeBlocks; } }
-
-        public bool NoAllocatedBlocks { get { return _freeBlocks == _blockCount; } }
-    }
-
-    public unsafe class MemoryAllocator {
+    public static unsafe class MemoryAllocator {
         public static readonly int SEGMENT_COUNT = 1024 * 128; // 64Go
 
-        private MemorySegment[] _segments = new MemorySegment[SEGMENT_COUNT];
-        private LinkedIndexPool _pool = new LinkedIndexPool(SEGMENT_COUNT, 1000);
-        private long _totalMemory = 0;
-        private long _totalBlocks = 0;
-        private long _totalBufferSpace = 0;
+        private static MemorySegment[] _segments = new MemorySegment[SEGMENT_COUNT];
+        private static LinkedIndexPool _pool = new LinkedIndexPool(SEGMENT_COUNT, 1000);
+        private static long _totalMemory = 0;
+        private static long _totalBlockCount = 0;
+        private static long _totalBufferSpace = 0;
+        private static long _totalSegmentCount = 0;
 
-        private int SizeToQueue(int size) {
+        private static int SizeToQueue(int size) {
             int q = 0;
             if (size < 1024) {
                 q = 100 + ((size / 64) * 2);
@@ -114,7 +30,7 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
             return q;
         }
 
-        private void SizeToSegmentProperties(int size, out int segSize, out int blockSize) {
+        private static void SizeToSegmentProperties(int size, out int segSize, out int blockSize) {
             int q = 0;
             segSize = 0;
             blockSize = 0;
@@ -139,7 +55,7 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
             }
         }
 
-        public byte* Malloc(int size) {
+        public static byte* Malloc(int size, bool counterBased = false) {
             byte* ptr = null;
             int q = SizeToQueue(size);
             int idx = _pool.FirstOfQueue(q);
@@ -151,32 +67,38 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
                 int mem;
                 SizeToSegmentProperties(size, out segsSize, out blocksSize);
                 _segments[idx].Build(segsSize, blocksSize, idx, out mem);
-                ptr = _segments[idx].Malloc(size);
+                ptr = _segments[idx].Malloc(size, counterBased);
                 Interlocked.Add(ref _totalBufferSpace, mem);
+                Interlocked.Increment(ref _totalSegmentCount);
                 Interlocked.Add(ref _totalMemory, size);
-                Interlocked.Increment(ref _totalBlocks);
+                Interlocked.Increment(ref _totalBlockCount);
             } else {
                 ptr = _segments[idx].Malloc(size);
                 if (_segments[idx].FreeBlocks == 0)
                     _pool.Enqueue(idx, q + 1);
                 Interlocked.Add(ref _totalMemory, size);
-                Interlocked.Increment(ref _totalBlocks);
+                Interlocked.Increment(ref _totalBlockCount);
             }
             return ptr;
         }
 
-        public void Free(byte* ptr) {
+        public static void Free(byte* ptr, bool counterBased = false) {
             var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
             header->CheckCoherency();
+            if (counterBased && header->ReferenceCount > 1) {
+                Interlocked.Decrement(ref header->ReferenceCount);
+                return;
+            }
             int idx = header->SegmentIndex;
             Interlocked.Add(ref _totalMemory, -header->PtrSize);
-            Interlocked.Decrement(ref _totalBlocks);
+            Interlocked.Decrement(ref _totalBlockCount);
             _segments[idx].Free(ptr);
             if (_segments[idx].NoAllocatedBlocks) {
                 // -------- Faire en sorte qu'on garde au moins un segment de chaque taille
                 int mem;
                 _segments[idx].Dispose(out mem);
                 Interlocked.Add(ref _totalBufferSpace, -mem);
+                Interlocked.Decrement(ref _totalSegmentCount);
                 _pool.Push(idx);
             } else {
                 var q = _pool.GetEntryQueue(idx);
@@ -185,15 +107,16 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
             }
         }
 
-        public byte* Realloc(byte* ptr, int newSize) {
+        public static byte* Realloc(byte* ptr, int newSize) {
             return null;
         }
 
-        public long TotalAllocatedMemory { get { return _totalMemory; } }
+        public static long TotalAllocatedMemory { get { return _totalMemory; } }
 
-        public long BlocksCount { get { return _totalBlocks; } }
+        public static long BlockCountCount { get { return _totalBlockCount; } }
+        public static long SegmentCountCount { get { return _totalSegmentCount; } }
 
-        public double EfficiencyRatio { get { return ((double)_totalMemory / (double)_totalBufferSpace); } }
+        public static double EfficiencyRatio { get { return ((double)_totalMemory / (double)_totalBufferSpace); } }
     }
 
 }

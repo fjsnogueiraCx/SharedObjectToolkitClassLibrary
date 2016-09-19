@@ -42,12 +42,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Memory\BlockBasedAllocator\MemoryAllocator.cs" />
+    <Compile Include="Memory\BlockBasedAllocator\MemorySegment.cs" />
+    <Compile Include="Memory\BlockBasedAllocator\SegmentHeader.cs" />
     <Compile Include="Memory\LinkedIndexPool\LinkedIndexPool.cs" />
     <Compile Include="Memory\LinkedIndexPool\LinkedIndexPoolEntry.cs" />
     <Compile Include="Memory\LinkedIndexPool\LinkedIndexPoolPopMode.cs" />
     <Compile Include="Memory\LinkedIndexPool\LinkedIndexPoolQueue.cs" />
     <Compile Include="Memory\NativeMemoryHelper.cs" />
     <Compile Include="Memory\LinkedIndexPool\StackedIndexPoolUnsafe.cs" />
+    <Compile Include="Memory\VirtualObject\TypeDescriptor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />

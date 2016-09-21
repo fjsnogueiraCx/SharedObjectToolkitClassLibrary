@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SharedObjectToolkitClassLibrary.BlockBasedAllocator;
@@ -18,10 +19,12 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
         }
 
 
-        protected void NewVersion() {
+        protected void NewVersion(bool clearFixed = false, bool clearAll = false) {
             if (_data == null) {
-                Allocate(_descriptor.InitialSize);
-                MemoryHelper.Fill(_data, 0x00, MemoryAllocator.SizeOf(_data));
+                Allocate(_descriptor.InitialSize, true);
+                if (!clearAll && clearFixed)
+                    MemoryHelper.Fill(_data, 0x00, _descriptor.FixedPartLenght);
+                else if (clearAll) MemoryHelper.Fill(_data, 0x00, MemoryAllocator.SizeOf(_data));
                 for (int i = 0; i < _descriptor.VariablePartCount; i++)
                     ArrayRecords[i] = new InBlockArrayRecord() {Lenght = 0, Offset = _descriptor.InitialSize};
             } else {

@@ -88,7 +88,6 @@ namespace BenchmarkApp {
         }
 
         public MyClasse_B() {
-            B = 35;
         }
 
         public int B {

@@ -58,9 +58,9 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
 
         // ****************************************************************************************** //
         // ********** STATISTICS
-        public static byte* New(int size, bool counterBased = false) {
+        public static byte* New(int size, bool counterBased = false, bool overSized = false) {
             byte* ptr = null;
-            int q = SizeToQueue(size);
+            int q = SizeToQueue(size + (overSized ? size * 2 : 0));
             int idx = _pool.FirstOfQueue(q);
             if (idx == -1) {
                 idx = _pool.Pop();
@@ -68,7 +68,7 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
                 int segsSize = 0;
                 int blocksSize = 0;
                 int mem;
-                SizeToSegmentProperties(size, out segsSize, out blocksSize);
+                SizeToSegmentProperties(size + (overSized ? size * 2 : 0), out segsSize, out blocksSize);
                 _segments[idx].Build(segsSize, blocksSize, idx, out mem);
                 ptr = _segments[idx].Malloc(size, counterBased);
                 Interlocked.Add(ref _totalBufferSpace, mem);

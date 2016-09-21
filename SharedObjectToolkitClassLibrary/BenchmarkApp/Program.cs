@@ -10,12 +10,13 @@ namespace BenchmarkApp {
     public class Program {
         static void Main(string[] args) {
             HighPrecisionTimer timer = new HighPrecisionTimer();
-            MyClasse_B B = new MyClasse_B();
-            B.Name = "Le monde est jolie !";
             int n = 0;
             Console.WriteLine("Start...");
             timer.Start();
             do {
+                MyClasse_B B = new MyClasse_B();
+                B.Name = "Gabriel is in the flers and the camps !";
+                B.Name = "Veronique had a small car !";
                 if (B.Name == "Ok")
                     n = n * 2 / 2;
                 B.A = 65;
@@ -30,13 +31,13 @@ namespace BenchmarkApp {
 
 
             n = 0;
-            List<MyClasse_B> lst = new List<MyClasse_B>();
+            Dictionary<long,MyClasse_B> lst = new Dictionary<long, MyClasse_B>();
             timer.Reset(true);
             do {
                 MyClasse_B B2 = new MyClasse_B();
                 B2.Name = "Le monde est jolie ! Le monde il est beau ! Tout le monde s'aime !";
                 B2.A = 65;
-                lst.Add(B2);
+                lst.Add(n, B2);
                 n++;
                 if (timer.Milliseconds > 1000) {
                     Console.WriteLine("Iterations : " + n);

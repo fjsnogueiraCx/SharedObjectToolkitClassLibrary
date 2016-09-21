@@ -22,8 +22,8 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
             Allocate(size);
         }
 
-        protected void Allocate(int size) {
-            _data = MemoryAllocator.New(size, true);
+        protected void Allocate(int size, bool overSized = false) {
+            _data = MemoryAllocator.New(size, true, overSized);
         }
 
         protected void Force(byte* ptr) {

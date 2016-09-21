@@ -4,6 +4,12 @@ using System.Threading;
 using SharedObjectToolkitClassLibrary.Memory;
 
 namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
+    [Flags]
+    public enum MemoryMode {
+        ModifyReferenceCounters,
+        FreeIfNullCounters
+    }
+
     public unsafe struct MemorySegment {
         private LinkedIndexPool _blockPool;
         private int _blocksSize;

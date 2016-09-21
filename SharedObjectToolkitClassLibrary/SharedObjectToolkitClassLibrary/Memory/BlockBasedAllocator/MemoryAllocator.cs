@@ -1,9 +1,10 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using SharedObjectToolkitClassLibrary.Memory;
 
 namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
     public static unsafe class MemoryAllocator {
-        public static readonly int SEGMENT_COUNT = 1024 * 128; // 64Go
+        public static readonly int SEGMENT_COUNT = 1024 * 128; // min 262 Go -> max 8 To
 
         private static MemorySegment[] _segments = new MemorySegment[SEGMENT_COUNT];
         private static LinkedIndexPool _pool = new LinkedIndexPool(SEGMENT_COUNT, 1000);
@@ -55,7 +56,9 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
             }
         }
 
-        public static byte* Malloc(int size, bool counterBased = false) {
+        // ****************************************************************************************** //
+        // ********** STATISTICS
+        public static byte* New(int size, bool counterBased = false) {
             byte* ptr = null;
             int q = SizeToQueue(size);
             int idx = _pool.FirstOfQueue(q);
@@ -107,14 +110,45 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
             }
         }
 
-        public static byte* Realloc(byte* ptr, int newSize) {
-            return null;
+        public static byte* ChangeSize(byte* ptr, int newSize, bool counterBased = false) {
+            var header = ((SegmentHeader*) (ptr - SegmentHeader.SIZE));
+            if (header->BlocksSize >= newSize && newSize >= header->BlocksSize/2 && header->BlocksSize > 64) {
+                header->PtrSize = newSize;
+            } else {
+                if (ptr == null)
+                    throw new ArgumentException("Null parameter.", "data");
+                if (newSize < 0)
+                    throw new ArgumentException("Invalid parameter.", "newSize");
+                byte* newBuffer = ptr;
+                var dataLength = SizeOf(ptr);
+                if (dataLength != newSize) {
+                    newBuffer = New(newSize, counterBased);
+                    MemoryHelper.Copy(ptr, newBuffer, newSize < dataLength ? newSize : dataLength);
+                    if (counterBased)
+                        Free(ptr, true);
+                }
+                return newBuffer;
+            }
+            return ptr;
         }
 
+        public static int SizeOf(byte* ptr) {
+            var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
+            return header->PtrSize;
+        }
+
+        public static int Reserve(byte* ptr) {
+            var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
+            return header->BlocksSize - header->PtrSize;
+        }
+
+        // ****************************************************************************************** //
+        // ********** STATISTICS
         public static long TotalAllocatedMemory { get { return _totalMemory; } }
 
-        public static long BlockCountCount { get { return _totalBlockCount; } }
-        public static long SegmentCountCount { get { return _totalSegmentCount; } }
+        public static long BlockCount { get { return _totalBlockCount; } }
+
+        public static long SegmentCount { get { return _totalSegmentCount; } }
 
         public static double EfficiencyRatio { get { return ((double)_totalMemory / (double)_totalBufferSpace); } }
     }

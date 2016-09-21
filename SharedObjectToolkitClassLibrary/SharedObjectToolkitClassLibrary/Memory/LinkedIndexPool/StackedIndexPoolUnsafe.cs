@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
 namespace SharedObjectToolkitClassLibrary.Memory {
     public unsafe class StackedIndexPoolUnsafe {
@@ -11,7 +12,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
 
         public StackedIndexPoolUnsafe(int capacity, int idOffset) {
             _idOffset = idOffset;
-            _entries = (int*)NativeMemoryHelper.New(capacity * sizeof(int));
+            _entries = (int*)HeapAllocator.New(capacity * sizeof(int));
             for (int i = 0; i < capacity; i++)
                 _entries[i] = i + idOffset;
             _bottom = 0;
@@ -20,7 +21,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
 
         public void Dispose() {
             if (_entries != null) {
-                NativeMemoryHelper.Free((byte*)_entries);
+                HeapAllocator.Free((byte*)_entries);
                 _entries = null;
             }
         }
@@ -32,9 +33,9 @@ namespace SharedObjectToolkitClassLibrary.Memory {
         private void EnsureCpacity(int n) {
             if (n >= _capacity) {
                 int newCapacity = _capacity * 2;
-                int* newEntries = (int*)NativeMemoryHelper.New(newCapacity * sizeof(int));
-                NativeMemoryHelper.Copy((byte*)_entries, (byte*)newEntries, _capacity * sizeof(int));
-                NativeMemoryHelper.Free((byte*)_entries);
+                int* newEntries = (int*)HeapAllocator.New(newCapacity * sizeof(int));
+                MemoryHelper.Copy((byte*)_entries, (byte*)newEntries, _capacity * sizeof(int));
+                HeapAllocator.Free((byte*)_entries);
                 for (int i = _capacity; i < newCapacity; i++)
                     newEntries[i] = i + _idOffset;
                 _entries = newEntries;

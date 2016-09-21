@@ -4,19 +4,22 @@ using System.Runtime.InteropServices;
 namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
     [System.Runtime.InteropServices.StructLayout(LayoutKind.Sequential)]
     public unsafe struct SegmentHeader {
-        public static readonly int SIZE = sizeof(SegmentHeader);
+        public static readonly int SIZE = sizeof (SegmentHeader); // 32 bytes
+        // -------- Block index in the segment
         public int BlockIndex;
+        // -------- Current used memory in the block
         public int PtrSize;
+        // -------- Size of usable memory in the block
         public int BlocksSize;
+        // -------- Sgment index in the whole memory manager
         public int SegmentIndex;
+        // -------- Number of SmartPointer (or other datastructure) referencing this block, wite the promess to remove it when not anymore used
         public volatile int ReferenceCount;
-        public int UserValue;
-        // ------- +8 octets de donnée attachées, pour le RTTI par exemple ? Ou pour l'utilisateur ?
-        // -------- Référence counter pour les SmartPointer ? 4 octets RTTI + 4 octets de RefCounter
-        // -------- Pourquoi pas laisser l'utilisateur choisir l'espace alloué à chaque pointeur ? Comme cela, il se fait ses allocators spécifiques...
+        // -------- Virtual object type identifier - or user data...
+        public FactoryTypeIdentifier TypeIdentifier;
 
         public int GetPtrSize(byte* ptr) {
-            return ((SegmentHeader*)(ptr - SIZE))->PtrSize;
+            return ((SegmentHeader*) (ptr - SIZE))->PtrSize;
         }
 
         public void CheckCoherency() {
@@ -26,6 +29,7 @@ namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
 
         public void Invalidate() {
             BlockIndex = PtrSize = BlocksSize = SegmentIndex = -1;
+            TypeIdentifier.TypeCode = TypeIdentifier.Version = 0;
         }
     }
 }

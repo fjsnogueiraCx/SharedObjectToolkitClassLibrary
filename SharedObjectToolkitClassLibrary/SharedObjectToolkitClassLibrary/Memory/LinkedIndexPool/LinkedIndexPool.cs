@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
 namespace SharedObjectToolkitClassLibrary.Memory {
     public unsafe class LinkedIndexPool {
@@ -17,7 +18,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
             if (queueCount < 2)
                 queueCount = 2;
             // -------- Initialize entries
-            _entries = (LinkedIndexPoolEntry*)NativeMemoryHelper.New(sizeof(LinkedIndexPoolEntry) * capacity);
+            _entries = (LinkedIndexPoolEntry*)HeapAllocator.New(sizeof(LinkedIndexPoolEntry) * capacity);
             _capacity = capacity;
             for (int i = 0; i < capacity; i++) {
                 _entries[i].Previous = i - 1;
@@ -28,7 +29,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
             _entries[0].Previous = -1;
             _entries[capacity - 1].Next = -1;
             // -------- Initialize queues
-            _queues = (LinkedIndexPoolQueue*)NativeMemoryHelper.New(sizeof(LinkedIndexPoolQueue) * queueCount);
+            _queues = (LinkedIndexPoolQueue*)HeapAllocator.New(sizeof(LinkedIndexPoolQueue) * queueCount);
             _queueCount = queueCount;
             for (int i = 0; i < queueCount; i++) {
                 _queues[i].First = _queues[i].Last = -1;
@@ -46,8 +47,8 @@ namespace SharedObjectToolkitClassLibrary.Memory {
 
         public void Dispose() {
             if (_queueStack != null) {
-                NativeMemoryHelper.Free((byte*)_entries);
-                NativeMemoryHelper.Free((byte*)_queues);
+                HeapAllocator.Free((byte*)_entries);
+                HeapAllocator.Free((byte*)_queues);
                 _queueStack = null;
             }
         }
@@ -178,8 +179,8 @@ namespace SharedObjectToolkitClassLibrary.Memory {
                 // -------- Multiply by 2 the capacity
                 LinkedIndexPoolEntry* olds = _entries;
                 int newCapacity = _capacity * 2;
-                _entries = (LinkedIndexPoolEntry*)NativeMemoryHelper.New(sizeof(LinkedIndexPoolEntry) * newCapacity);
-                NativeMemoryHelper.Copy((byte*)olds, (byte*)_entries, sizeof(LinkedIndexPoolEntry) * _capacity);
+                _entries = (LinkedIndexPoolEntry*)HeapAllocator.New(sizeof(LinkedIndexPoolEntry) * newCapacity);
+                MemoryHelper.Copy((byte*)olds, (byte*)_entries, sizeof(LinkedIndexPoolEntry) * _capacity);
                 for (int i = _capacity; i < newCapacity; i++) {
                     _entries[i].Previous = i - 1;
                     _entries[i].Next = i + 1;
@@ -194,7 +195,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
                 _queues[0].Count += _capacity;
                 // -------- 
                 _capacity = newCapacity;
-                NativeMemoryHelper.Free((byte*)olds);
+                HeapAllocator.Free((byte*)olds);
                 CheckCoherency();
             }
         }
@@ -283,7 +284,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
                 if (_queueStack.Capacity > _queueCount) {
                     int newQueueCount = _queueStack.Capacity;
                     LinkedIndexPoolQueue* _oldQueues = _queues;
-                    _queues = (LinkedIndexPoolQueue*)NativeMemoryHelper.New(sizeof(LinkedIndexPoolQueue) * newQueueCount);
+                    _queues = (LinkedIndexPoolQueue*)HeapAllocator.New(sizeof(LinkedIndexPoolQueue) * newQueueCount);
                     for (int i = 0; i < _queueCount; i++) {
                         _queues[i] = _oldQueues[i];
                     }

@@ -4,15 +4,17 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{559B1F57-97B4-4430-ADE4-1DEDDEF5749A}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{FEE35336-8ABA-4D4B-8D6D-D7521967F352}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SharedObjectToolkitClassLibrary</RootNamespace>
-    <AssemblyName>SharedObjectToolkitClassLibrary</AssemblyName>
+    <RootNamespace>BenchmarkApp</RootNamespace>
+    <AssemblyName>BenchmarkApp</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>true</Optimize>
@@ -23,6 +25,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -42,27 +45,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Memory\BlockBasedAllocator\HeapAllocator.cs" />
-    <Compile Include="Memory\VirtualObject\FactoryTypeIdentifier.cs" />
-    <Compile Include="Memory\BlockBasedAllocator\MemoryAllocator.cs" />
-    <Compile Include="Memory\BlockBasedAllocator\MemorySegment.cs" />
-    <Compile Include="Memory\BlockBasedAllocator\SegmentHeader.cs" />
-    <Compile Include="Memory\LinkedIndexPool\LinkedIndexPool.cs" />
-    <Compile Include="Memory\LinkedIndexPool\LinkedIndexPoolEntry.cs" />
-    <Compile Include="Memory\LinkedIndexPool\LinkedIndexPoolPopMode.cs" />
-    <Compile Include="Memory\LinkedIndexPool\LinkedIndexPoolQueue.cs" />
-    <Compile Include="Memory\MemoryHelper.cs" />
-    <Compile Include="Memory\LinkedIndexPool\StackedIndexPoolUnsafe.cs" />
-    <Compile Include="Memory\BlockBasedAllocator\SmartPointer.cs" />
-    <Compile Include="Memory\VirtualObject\Repository.cs" />
-    <Compile Include="Memory\VirtualObject\TestConstruction.cs" />
-    <Compile Include="Memory\VirtualObject\TypeDescriptor.cs" />
-    <Compile Include="Memory\VirtualObject\VirtualObject.cs" />
-    <Compile Include="Memory\VirtualObject\VirtualObjectFactory.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utilities\Timers.cs" />
+    <Compile Include="TestDataClasses.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SharedObjectToolkitClassLibrary\SharedObjectToolkitClassLibrary.csproj">
+      <Project>{559b1f57-97b4-4430-ade4-1deddef5749a}</Project>
+      <Name>SharedObjectToolkitClassLibrary</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

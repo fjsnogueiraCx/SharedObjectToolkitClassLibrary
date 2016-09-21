@@ -2,7 +2,7 @@
 
 Imagine you can load, access, modify and asynchronously save to disk billions of immediatly accessible objects using concurent thread that are communicates at nanosecond latency delay, without any locks nor GC pauses ?
 
-This is the goal of this project : built heavy single process in memory mlti-threaded high performance applications. This project is a partial migration of a personnal class library.
+This is the goal of this project : built heavy single process in memory mlti-threaded high performance applications running on multi Go serveurs, or Tera of RAM with many cores. This project is a partial migration of a personnal class library.
 
 ! WORK IN PROGRESS !
 

@@ -1,156 +1,87 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
-using SharedObjectToolkitClassLibrary.Memory;
 
-namespace SharedObjectToolkitClassLibrary.BlockBasedAllocator {
+namespace SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator {
     public static unsafe class MemoryAllocator {
-        public static readonly int SEGMENT_COUNT = 1024 * 128; // min 262 Go -> max 8 To
+        static MemoryAllocatorPartition[] _partitions = new MemoryAllocatorPartition[Math.Min(Math.Max(Environment.ProcessorCount/2,2),128)];
+        private static int _allocationCircularCounter = 0;
+        private static long _lockFailed = 0;
 
-        private static MemorySegment[] _segments = new MemorySegment[SEGMENT_COUNT];
-        private static LinkedIndexPool _pool = new LinkedIndexPool(SEGMENT_COUNT, 1000);
-        private static long _totalMemory = 0;
-        private static long _totalBlockCount = 0;
-        private static long _totalBufferSpace = 0;
-        private static long _totalSegmentCount = 0;
-
-        private static int SizeToQueue(int size) {
-            int q = 0;
-            if (size < 1024) {
-                q = 100 + ((size / 64) * 2);
-            } else if (size >= 1024 && size < 8192) {
-                q = 200 + (((size - 1024) / 512) * 2);
-            } else if (size >= 8192 && size < 65536) {
-                q = 300 + (((size - 8192) / 4096) * 2);
-            } else if (size >= 65536 && size < 524288) {
-                q = 400 + (((size - 65536) / 32768) * 2);
-            } else if (size >= 524288 && size < 4194304) {
-                q = 500 + (((size - 524288) / 262144) * 2);
-            } else if (size >= 4194304 && size < 33554432) {
-                q = 600 + (((size - 4194304) / 2097152) * 2);
-            }
-            return q;
-        }
-
-        private static void SizeToSegmentProperties(int size, out int segSize, out int blockSize) {
-            int q = 0;
-            segSize = 0;
-            blockSize = 0;
-            if (size < 1024) {
-                blockSize = ((size / 64) + 1) * 64;
-                segSize = 1024 * 2048; // 2Mo (16 = 32 mo)
-            } else if (size >= 1024 && size < 8192) {
-                blockSize = ((size / 512) + 1) * 512;
-                segSize = 8192 * 1024; // 8Mo (16 = 128 mo)
-            } else if (size >= 8192 && size < 65536) {
-                blockSize = ((size / 4096) + 1) * 4096;
-                segSize = 65536 * 256; // 16Mo (16 = 256 mo)
-            } else if (size >= 65536 && size < 524288) {
-                blockSize = ((size / 32768) + 1) * 32768;
-                segSize = 65536 * 512; // 32Mo  (16 = 512 mo)
-            } else if (size >= 524288 && size < 4194304) {
-                blockSize = ((size / 262144) + 1) * 262144;
-                segSize = 65536 * 512; // 32Mo  (16 = 512 mo)
-            } else if (size >= 4194304 && size < 33554432) {
-                blockSize = ((size / 2097152) + 1) * 2097152;
-                segSize = 65536 * 1024; // 64Mo  (16 = 1 Go)
+        static MemoryAllocator() {
+            byte i = 0;
+            foreach (var p in _partitions) {
+                _partitions[i] = new MemoryAllocatorPartition();
+                _partitions[i].PartitionIndex = i++;
             }
         }
 
-        // ****************************************************************************************** //
-        // ********** STATISTICS
         public static byte* New(int size, bool counterBased = false, bool overSized = false) {
-            byte* ptr = null;
-            int q = SizeToQueue(size + (overSized ? size * 2 : 0));
-            int idx = _pool.FirstOfQueue(q);
-            if (idx == -1) {
-                idx = _pool.Pop();
-                _pool.Enqueue(idx, q);
-                int segsSize = 0;
-                int blocksSize = 0;
-                int mem;
-                SizeToSegmentProperties(size + (overSized ? size * 2 : 0), out segsSize, out blocksSize);
-                _segments[idx].Build(segsSize, blocksSize, idx, out mem);
-                ptr = _segments[idx].Malloc(size, counterBased);
-                Interlocked.Add(ref _totalBufferSpace, mem);
-                Interlocked.Increment(ref _totalSegmentCount);
-                Interlocked.Add(ref _totalMemory, size);
-                Interlocked.Increment(ref _totalBlockCount);
-            } else {
-                ptr = _segments[idx].Malloc(size);
-                if (_segments[idx].FreeBlocks == 0)
-                    _pool.Enqueue(idx, q + 1);
-                Interlocked.Add(ref _totalMemory, size);
-                Interlocked.Increment(ref _totalBlockCount);
-            }
-            return ptr;
+            int temptatives = 0;
+            do {
+                var p = _partitions[Interlocked.Increment(ref _allocationCircularCounter) % (_partitions.Length - 1)];
+                if (Monitor.TryEnter(p._locker)) {
+                    try {
+                        return p.New(size, counterBased, overSized);
+                    } finally {
+                        Monitor.Exit(p._locker);
+                    }
+                }
+            } while (temptatives++ < _partitions.Length);
+            Interlocked.Increment(ref _lockFailed);
+            return _partitions[Interlocked.Increment(ref _allocationCircularCounter) % (_partitions.Length - 1)].New(size, counterBased, overSized);
         }
 
         public static void Free(byte* ptr, bool counterBased = false) {
-            var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
-            header->CheckCoherency();
-            if (counterBased && header->ReferenceCount > 1) {
-                Interlocked.Decrement(ref header->ReferenceCount);
-                return;
-            }
-            int idx = header->SegmentIndex;
-            Interlocked.Add(ref _totalMemory, -header->PtrSize);
-            Interlocked.Decrement(ref _totalBlockCount);
-            _segments[idx].Free(ptr);
-            if (_segments[idx].NoAllocatedBlocks) {
-                // -------- Faire en sorte qu'on garde au moins un segment de chaque taille
-                int mem;
-                _segments[idx].Dispose(out mem);
-                Interlocked.Add(ref _totalBufferSpace, -mem);
-                Interlocked.Decrement(ref _totalSegmentCount);
-                _pool.Push(idx);
-            } else {
-                var q = _pool.GetEntryQueue(idx);
-                if (q % 2 != 0)
-                    _pool.Enqueue(idx, q - 1);
-            }
+            _partitions[PartitionIndex(ptr)].Free(ptr, counterBased);
         }
 
         public static byte* ChangeSize(byte* ptr, int newSize, bool counterBased = false) {
-            var header = ((SegmentHeader*) (ptr - SegmentHeader.SIZE));
-            if (header->BlocksSize >= newSize && newSize >= header->BlocksSize/2 && header->BlocksSize > 64) {
-                header->PtrSize = newSize;
-            } else {
-                if (ptr == null)
-                    throw new ArgumentException("Null parameter.", "data");
-                if (newSize < 0)
-                    throw new ArgumentException("Invalid parameter.", "newSize");
-                byte* newBuffer = ptr;
-                var dataLength = SizeOf(ptr);
-                if (dataLength != newSize) {
-                    newBuffer = New(newSize, counterBased);
-                    MemoryHelper.Copy(ptr, newBuffer, newSize < dataLength ? newSize : dataLength);
-                    if (counterBased)
-                        Free(ptr, true);
-                }
-                return newBuffer;
-            }
-            return ptr;
+            return _partitions[PartitionIndex(ptr)].ChangeSize(ptr, newSize, counterBased);
         }
 
         public static int SizeOf(byte* ptr) {
             var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
+            header->CheckCoherency();
             return header->PtrSize;
         }
 
         public static int Reserve(byte* ptr) {
             var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
+            header->CheckCoherency();
             return header->BlocksSize - header->PtrSize;
         }
 
-        // ****************************************************************************************** //
-        // ********** STATISTICS
-        public static long TotalAllocatedMemory { get { return _totalMemory; } }
+        public static int PartitionIndex(byte* ptr) {
+            var header = ((SegmentHeader*)(ptr - SegmentHeader.SIZE));
+            header->CheckCoherency();
+            return header->PartitionIndex;
+        }
 
-        public static long BlockCount { get { return _totalBlockCount; } }
+        public static long TotalAllocatedMemory {
+            get {
+                return _partitions.Sum(partition => partition.TotalAllocatedMemory);
+            }
+        }
 
-        public static long SegmentCount { get { return _totalSegmentCount; } }
+        public static long BlockCount {
+            get {
+                return _partitions.Sum(partition => partition.BlockCount);
+            }
+        }
 
-        public static double EfficiencyRatio { get { return ((double)_totalMemory / (double)_totalBufferSpace); } }
+        public static long SegmentCount {
+            get {
+                return _partitions.Sum(partition => partition.SegmentCount);
+            }
+        }
+
+        public static double EfficiencyRatio {
+            get {
+                return _partitions.Average(partition => partition.EfficiencyRatio);
+            }
+        }
+
+        public static long LockFailed { get { return _lockFailed; } }
     }
-
 }

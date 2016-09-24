@@ -1,4 +1,5 @@
 using System;
+using SharedObjectToolkitClassLibrary.Memory;
 
 namespace SharedObjectToolkitClassLibrary.VirtualObject {
     public unsafe class TestConstruction {
@@ -7,7 +8,7 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
             public int _age;
         }
 
-        public class MyClasse_A : VirtualObject {
+        public class MyClasse_A : VirtualObject<ulong> {
             private static object _locker = new object();
             private static TypeDescriptor descriptor_A = null;
             private static int NAME;

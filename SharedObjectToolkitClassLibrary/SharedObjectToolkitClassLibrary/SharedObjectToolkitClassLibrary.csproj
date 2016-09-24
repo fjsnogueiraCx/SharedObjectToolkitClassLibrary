@@ -43,7 +43,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Memory\BlockBasedAllocator\HeapAllocator.cs" />
-    <Compile Include="Memory\VirtualObject\FactoryTypeIdentifier.cs" />
+    <Compile Include="Memory\BlockBasedAllocator\MemoryAllocatorPartition.cs" />
+    <Compile Include="VirtualObject\FactoryTypeIdentifier.cs" />
     <Compile Include="Memory\BlockBasedAllocator\MemoryAllocator.cs" />
     <Compile Include="Memory\BlockBasedAllocator\MemorySegment.cs" />
     <Compile Include="Memory\BlockBasedAllocator\SegmentHeader.cs" />
@@ -54,15 +55,18 @@
     <Compile Include="Memory\MemoryHelper.cs" />
     <Compile Include="Memory\LinkedIndexPool\StackedIndexPoolUnsafe.cs" />
     <Compile Include="Memory\BlockBasedAllocator\SmartPointer.cs" />
-    <Compile Include="Memory\VirtualObject\Repository.cs" />
-    <Compile Include="Memory\VirtualObject\TestConstruction.cs" />
-    <Compile Include="Memory\VirtualObject\TypeDescriptor.cs" />
-    <Compile Include="Memory\VirtualObject\VirtualObject.cs" />
-    <Compile Include="Memory\VirtualObject\VirtualObjectFactory.cs" />
+    <Compile Include="VirtualObject\Repository.cs" />
+    <Compile Include="VirtualObject\TestConstruction.cs" />
+    <Compile Include="VirtualObject\TypeDescriptor.cs" />
+    <Compile Include="VirtualObject\VirtualObject.cs" />
+    <Compile Include="VirtualObject\VirtualObjectFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utilities\Timers.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Persistance\" />
+    <Folder Include="Relations\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

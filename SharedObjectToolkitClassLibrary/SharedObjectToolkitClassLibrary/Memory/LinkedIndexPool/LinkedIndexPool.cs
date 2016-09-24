@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
-namespace SharedObjectToolkitClassLibrary.Memory {
+namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
     public unsafe class LinkedIndexPool {
-        private object _locker = new object();
         private LinkedIndexPoolEntry* _entries;
         private LinkedIndexPoolQueue* _queues;
         private int _capacity;
@@ -18,7 +17,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
             if (queueCount < 2)
                 queueCount = 2;
             // -------- Initialize entries
-            _entries = (LinkedIndexPoolEntry*)HeapAllocator.New(sizeof(LinkedIndexPoolEntry) * capacity);
+            _entries = (LinkedIndexPoolEntry*) HeapAllocator.New(sizeof (LinkedIndexPoolEntry)*capacity);
             _capacity = capacity;
             for (int i = 0; i < capacity; i++) {
                 _entries[i].Previous = i - 1;
@@ -29,7 +28,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
             _entries[0].Previous = -1;
             _entries[capacity - 1].Next = -1;
             // -------- Initialize queues
-            _queues = (LinkedIndexPoolQueue*)HeapAllocator.New(sizeof(LinkedIndexPoolQueue) * queueCount);
+            _queues = (LinkedIndexPoolQueue*) HeapAllocator.New(sizeof (LinkedIndexPoolQueue)*queueCount);
             _queueCount = queueCount;
             for (int i = 0; i < queueCount; i++) {
                 _queues[i].First = _queues[i].Last = -1;
@@ -47,8 +46,8 @@ namespace SharedObjectToolkitClassLibrary.Memory {
 
         public void Dispose() {
             if (_queueStack != null) {
-                HeapAllocator.Free((byte*)_entries);
-                HeapAllocator.Free((byte*)_queues);
+                HeapAllocator.Free((byte*) _entries);
+                HeapAllocator.Free((byte*) _queues);
                 _queueStack = null;
             }
         }
@@ -57,25 +56,18 @@ namespace SharedObjectToolkitClassLibrary.Memory {
             Dispose();
         }
 
-        public int Capacity {
-            get { return _capacity; }
-        }
+        public int Capacity { get { return _capacity; } }
 
-        public int MaxQueueCount {
-            get { return _queueStack.Capacity; }
-        }
+        public int MaxQueueCount { get { return _queueStack.Capacity; } }
 
-        public int FreeQueueCount {
-            get { return _queueStack.FreeCount; }
-        }
+        public int FreeQueueCount { get { return _queueStack.FreeCount; } }
 
-        public LinkedIndexPoolEntry* Entries {
-            get { return _entries; }
-        }
+        public LinkedIndexPoolEntry* Entries { get { return _entries; } }
 
         /********************************************************************************
 		* PRIVATE
 		********************************************************************************/
+
         private void Dettach(LinkedIndexPoolEntry* e) {
             if (e->Queue > -1) {
                 LinkedIndexPoolQueue* eq = &_queues[e->Queue];
@@ -178,9 +170,9 @@ namespace SharedObjectToolkitClassLibrary.Memory {
             if (_queues[0].Count <= 5) {
                 // -------- Multiply by 2 the capacity
                 LinkedIndexPoolEntry* olds = _entries;
-                int newCapacity = _capacity * 2;
-                _entries = (LinkedIndexPoolEntry*)HeapAllocator.New(sizeof(LinkedIndexPoolEntry) * newCapacity);
-                MemoryHelper.Copy((byte*)olds, (byte*)_entries, sizeof(LinkedIndexPoolEntry) * _capacity);
+                int newCapacity = _capacity*2;
+                _entries = (LinkedIndexPoolEntry*) HeapAllocator.New(sizeof (LinkedIndexPoolEntry)*newCapacity);
+                MemoryHelper.Copy((byte*) olds, (byte*) _entries, sizeof (LinkedIndexPoolEntry)*_capacity);
                 for (int i = _capacity; i < newCapacity; i++) {
                     _entries[i].Previous = i - 1;
                     _entries[i].Next = i + 1;
@@ -195,7 +187,7 @@ namespace SharedObjectToolkitClassLibrary.Memory {
                 _queues[0].Count += _capacity;
                 // -------- 
                 _capacity = newCapacity;
-                HeapAllocator.Free((byte*)olds);
+                HeapAllocator.Free((byte*) olds);
                 CheckCoherency();
             }
         }
@@ -203,124 +195,109 @@ namespace SharedObjectToolkitClassLibrary.Memory {
         /********************************************************************************
 		* PUBLIC
 		********************************************************************************/
+
         public int Pop() {
-            lock (_locker) {
-                CheckCapacity();
-                LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
+            CheckCapacity();
+            LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
+            MoveAtStart(e, &_queues[1]);
+            if (e->Index == 0) {
+                e = &_entries[_queues[0].First];
                 MoveAtStart(e, &_queues[1]);
-                if (e->Index == 0) {
-                    e = &_entries[_queues[0].First];
-                    MoveAtStart(e, &_queues[1]);
-                    return e->Index;
-                } else return e->Index;
-            }
+                return e->Index;
+            } else return e->Index;
         }
 
         public int Pop(LinkedIndexPoolPopMode mode) {
-            lock (_locker) {
-                CheckCapacity();
-                switch (mode) {
-                    case LinkedIndexPoolPopMode.TakeFirstAddAtStart:
-                    {
-                        LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
+            CheckCapacity();
+            switch (mode) {
+                case LinkedIndexPoolPopMode.TakeFirstAddAtStart: {
+                    LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
+                    MoveAtStart(e, &_queues[1]);
+                    if (e->Index == 0) {
+                        e = &_entries[_queues[0].First];
                         MoveAtStart(e, &_queues[1]);
-                        if (e->Index == 0) {
-                            e = &_entries[_queues[0].First];
-                            MoveAtStart(e, &_queues[1]);
-                            return e->Index;
-                        } else return e->Index;
-                    }
-                    case LinkedIndexPoolPopMode.TakeLastAddAtStart:
-                    {
-                        LinkedIndexPoolEntry* e = &_entries[_queues[0].Last];
-                        MoveAtStart(e, &_queues[1]);
-                        if (e->Index == 0) {
-                            e = &_entries[_queues[0].Last];
-                            MoveAtStart(e, &_queues[1]);
-                            return e->Index;
-                        } else return e->Index;
-                    }
-                    case LinkedIndexPoolPopMode.TakeFirstAddAtEnd:
-                    {
-                        LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
-                        MoveAtEnd(e, &_queues[1]);
-                        if (e->Index == 0) {
-                            e = &_entries[_queues[0].First];
-                            MoveAtEnd(e, &_queues[1]);
-                            return e->Index;
-                        } else return e->Index;
-                    }
-                    case LinkedIndexPoolPopMode.TakeLastAddAtEnd:
-                    {
-                        LinkedIndexPoolEntry* e = &_entries[_queues[0].Last];
-                        MoveAtEnd(e, &_queues[1]);
-                        if (e->Index == 0) {
-                            e = &_entries[_queues[0].Last];
-                            MoveAtEnd(e, &_queues[1]);
-                            return e->Index;
-                        } else return e->Index;
-                    }
+                        return e->Index;
+                    } else return e->Index;
                 }
-                return 0;
+                case LinkedIndexPoolPopMode.TakeLastAddAtStart: {
+                    LinkedIndexPoolEntry* e = &_entries[_queues[0].Last];
+                    MoveAtStart(e, &_queues[1]);
+                    if (e->Index == 0) {
+                        e = &_entries[_queues[0].Last];
+                        MoveAtStart(e, &_queues[1]);
+                        return e->Index;
+                    } else return e->Index;
+                }
+                case LinkedIndexPoolPopMode.TakeFirstAddAtEnd: {
+                    LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
+                    MoveAtEnd(e, &_queues[1]);
+                    if (e->Index == 0) {
+                        e = &_entries[_queues[0].First];
+                        MoveAtEnd(e, &_queues[1]);
+                        return e->Index;
+                    } else return e->Index;
+                }
+                case LinkedIndexPoolPopMode.TakeLastAddAtEnd: {
+                    LinkedIndexPoolEntry* e = &_entries[_queues[0].Last];
+                    MoveAtEnd(e, &_queues[1]);
+                    if (e->Index == 0) {
+                        e = &_entries[_queues[0].Last];
+                        MoveAtEnd(e, &_queues[1]);
+                        return e->Index;
+                    } else return e->Index;
+                }
             }
+            return 0;
         }
 
         public void Push(int index) {
             if (index == 0)
                 throw new Exception("LinkedIndexPool : index invalide.");
-            lock (_locker) {
-                LinkedIndexPoolEntry* e = &_entries[index];
-                if (e->Queue == 0)
-                    throw new Exception("Entry already in zero queue.");
-                MoveAtStart(e, &_queues[0]);
-            }
+            LinkedIndexPoolEntry* e = &_entries[index];
+            if (e->Queue == 0)
+                throw new Exception("Entry already in zero queue.");
+            MoveAtStart(e, &_queues[0]);
         }
 
         /********************************************************************************/
         // -------- Queues
         public int GetFreeQueue() {
-            lock (_locker) {
-                int tmp = _queueStack.Pop();
-                if (_queueStack.Capacity > _queueCount) {
-                    int newQueueCount = _queueStack.Capacity;
-                    LinkedIndexPoolQueue* _oldQueues = _queues;
-                    _queues = (LinkedIndexPoolQueue*)HeapAllocator.New(sizeof(LinkedIndexPoolQueue) * newQueueCount);
-                    for (int i = 0; i < _queueCount; i++) {
-                        _queues[i] = _oldQueues[i];
-                    }
-                    for (int i = _queueCount; i < newQueueCount; i++) {
-                        _queues[i].First = _queues[i].Last = -1;
-                        _queues[i].Index = i;
-                        _queues[i].Count = 0;
-                    }
+            int tmp = _queueStack.Pop();
+            if (_queueStack.Capacity > _queueCount) {
+                int newQueueCount = _queueStack.Capacity;
+                LinkedIndexPoolQueue* _oldQueues = _queues;
+                _queues = (LinkedIndexPoolQueue*) HeapAllocator.New(sizeof (LinkedIndexPoolQueue)*newQueueCount);
+                for (int i = 0; i < _queueCount; i++) {
+                    _queues[i] = _oldQueues[i];
                 }
-                return tmp;
+                for (int i = _queueCount; i < newQueueCount; i++) {
+                    _queues[i].First = _queues[i].Last = -1;
+                    _queues[i].Index = i;
+                    _queues[i].Count = 0;
+                }
             }
+            return tmp;
         }
 
         public void ReleaseQueue(int queue) {
             if (queue < 2)
                 throw new Exception("LinkedIndexPool : invalid queue index : " + queue);
-            lock (_locker) {
-                if (_queues[queue].Last != -1) {
-                    do {
-                        LinkedIndexPoolEntry* e = &_entries[_queues[queue].Last];
-                        MoveAtEnd(e, &_queues[0]);
-                    } while (_queues[queue].Last != -1);
-                }
-                _queueStack.Push(queue);
+            if (_queues[queue].Last != -1) {
+                do {
+                    LinkedIndexPoolEntry* e = &_entries[_queues[queue].Last];
+                    MoveAtEnd(e, &_queues[0]);
+                } while (_queues[queue].Last != -1);
             }
+            _queueStack.Push(queue);
         }
 
         // -------- WARNING : EnqueueNew is BUGGED !
         public int EnqueueNew(int queue) {
             if (queue < 2)
                 throw new Exception("LinkedIndexPool : invalid queue index : " + queue);
-            lock (_locker) {
-                LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
-                MoveAtEnd(e, &_queues[queue]);
-                return e->Index;
-            }
+            LinkedIndexPoolEntry* e = &_entries[_queues[0].First];
+            MoveAtEnd(e, &_queues[queue]);
+            return e->Index;
         }
 
         public void Enqueue(int index, int queue) {
@@ -328,23 +305,19 @@ namespace SharedObjectToolkitClassLibrary.Memory {
                 throw new Exception("LinkedIndexPool : invalid index : " + index);
             if (queue < 2)
                 throw new Exception("LinkedIndexPool : invalid queue index : " + queue);
-            lock (_locker) {
-                LinkedIndexPoolEntry* e = &_entries[index];
-                MoveAtEnd(e, &_queues[queue]);
-            }
+            LinkedIndexPoolEntry* e = &_entries[index];
+            MoveAtEnd(e, &_queues[queue]);
         }
 
         public int Dequeue(int queue) {
             if (queue < 2)
                 throw new Exception("LinkedIndexPool : invalid queue index : " + queue);
-            lock (_locker) {
-                if (_queues[queue].First != -1) {
-                    LinkedIndexPoolEntry* e = &_entries[_queues[queue].First];
-                    MoveAtEnd(e, &_queues[1]);
-                    return e->Index;
-                } else
-                    return -1;
-            }
+            if (_queues[queue].First != -1) {
+                LinkedIndexPoolEntry* e = &_entries[_queues[queue].First];
+                MoveAtEnd(e, &_queues[1]);
+                return e->Index;
+            } else
+                return -1;
         }
 
         public void AddStructToQueue(int index, int queue) {
@@ -369,18 +342,16 @@ namespace SharedObjectToolkitClassLibrary.Memory {
 
         public List<int> QueueAsList(int queue) {
             List<int> r = new List<int>();
-            lock (_locker) {
-                if (_queues[queue].First != -1) {
-                    LinkedIndexPoolEntry* e = &_entries[_queues[queue].First];
-                    do {
-                        r.Add(e->Index);
-                        if (e->Next != -1) {
-                            e = &_entries[e->Next];
-                            if (e->Next == -1)
-                                r.Add(e->Index);
-                        } else break;
-                    } while (e->Next != -1);
-                }
+            if (_queues[queue].First != -1) {
+                LinkedIndexPoolEntry* e = &_entries[_queues[queue].First];
+                do {
+                    r.Add(e->Index);
+                    if (e->Next != -1) {
+                        e = &_entries[e->Next];
+                        if (e->Next == -1)
+                            r.Add(e->Index);
+                    } else break;
+                } while (e->Next != -1);
             }
             return r;
         }

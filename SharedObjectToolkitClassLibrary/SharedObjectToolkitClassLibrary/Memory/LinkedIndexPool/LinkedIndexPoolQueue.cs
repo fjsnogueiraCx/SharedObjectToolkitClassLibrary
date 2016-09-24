@@ -1,4 +1,4 @@
-namespace SharedObjectToolkitClassLibrary.Memory {
+namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
     public unsafe struct LinkedIndexPoolQueue {
         public int First;
         public int Last;

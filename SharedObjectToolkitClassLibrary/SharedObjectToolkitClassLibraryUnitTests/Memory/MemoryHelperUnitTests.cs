@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharedObjectToolkitClassLibrary;
+using SharedObjectToolkitClassLibrary.Memory;
 using SharedObjectToolkitClassLibrary.VirtualObject;
 
 namespace SharedObjectToolkitClassLibraryUnitTests.Memory.VirtualObject {

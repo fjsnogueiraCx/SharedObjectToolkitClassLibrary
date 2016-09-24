@@ -1,4 +1,4 @@
-namespace SharedObjectToolkitClassLibrary.Memory {
+namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
     public enum LinkedIndexPoolPopMode {
         TakeFirstAddAtStart,
         TakeLastAddAtStart,

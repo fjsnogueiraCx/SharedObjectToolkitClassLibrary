@@ -1,9 +1,6 @@
-﻿using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
+﻿using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
-namespace SharedObjectToolkitClassLibrary.Memory {
+namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
     public unsafe class StackedIndexPoolUnsafe {
         private int* _entries;
         private int _bottom;

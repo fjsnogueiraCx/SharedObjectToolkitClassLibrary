@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Data;
+using System.Net.Configuration;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using SharedObjectToolkitClassLibrary.BlockBasedAllocator;
+using SharedObjectToolkitClassLibrary.Memory;
+using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
 namespace SharedObjectToolkitClassLibrary.VirtualObject {
-    public unsafe class VirtualObject : SmartPointer {
+    public unsafe class VirtualObject<TKey> : SmartPointer where TKey : struct {
         private TypeDescriptor _descriptor = null;
+        private bool _delleted = false;
+        private TKey _id = default(TKey);
 
         protected TypeDescriptor InstanceTypeDescriptor { get { return _descriptor; } }
 
@@ -37,6 +41,8 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
         }
 
         protected InBlockArrayRecord* ArrayRecords { get { return (InBlockArrayRecord*) (_data + _descriptor.FixedPartLenght); } }
+
+        public TKey Id { get { return _id; } set { _id = value; } }
 
         protected ArrayPointer GetArray(int index) {
             if (index >= _descriptor.VariablePartCount)

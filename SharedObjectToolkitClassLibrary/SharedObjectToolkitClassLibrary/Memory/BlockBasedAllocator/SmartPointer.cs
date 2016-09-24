@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using System.Threading;
-using SharedObjectToolkitClassLibrary.BlockBasedAllocator;
 
-namespace SharedObjectToolkitClassLibrary.VirtualObject {
+namespace SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator {
     /// <summary>
     /// A memory reference with control over the real number of references,
     /// and hability to check for MVCC.
@@ -20,6 +18,10 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
 
         public SmartPointer(int size) {
             Allocate(size);
+        }
+
+        ~SmartPointer() {
+            Forget();
         }
 
         protected void Allocate(int size, bool overSized = false) {
@@ -56,6 +58,7 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
         }
 
         public void Dispose() {
+            GC.SuppressFinalize(this);
             Forget();
         }
     }

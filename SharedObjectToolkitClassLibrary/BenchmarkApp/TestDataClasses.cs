@@ -1,4 +1,5 @@
 ﻿using SharedObjectToolkitClassLibrary;
+using SharedObjectToolkitClassLibrary.Memory;
 using SharedObjectToolkitClassLibrary.VirtualObject;
 
 namespace BenchmarkApp {
@@ -6,7 +7,7 @@ namespace BenchmarkApp {
         public int _age;
     }
 
-    public unsafe class MyClasse_A : VirtualObject {
+    public unsafe class MyClasse_A : VirtualObject<ulong> {
         private static object _locker = new object();
         private static TypeDescriptor descriptor_A = null;
         private static int NAME;

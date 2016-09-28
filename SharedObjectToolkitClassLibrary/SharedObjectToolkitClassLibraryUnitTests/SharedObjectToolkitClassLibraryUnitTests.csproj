@@ -65,7 +65,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Memory\LinkedIndexPool\" />
+    <Folder Include="Memory\BlockBasedAllocator\" />
+    <Folder Include="Memory\IndexPools\" />
     <Folder Include="VirtualObject\" />
   </ItemGroup>
   <Choose>

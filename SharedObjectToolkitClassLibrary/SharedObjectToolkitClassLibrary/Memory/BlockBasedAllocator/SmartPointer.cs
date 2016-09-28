@@ -1,4 +1,8 @@
-﻿using System;
+﻿/*********************************************************************************
+*   (c) 2010 - 2016 / Gabriel RABHI
+*   SHARED OBJECT TOOLKIT CLASS LIBRARY
+*********************************************************************************/
+using System;
 using System.Threading;
 
 namespace SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator {
@@ -29,11 +33,11 @@ namespace SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator {
         }
 
         protected void Force(byte* ptr) {
-            Forget();
-            _data = ptr;
-            var header = ((SegmentHeader*) (_data - SegmentHeader.SIZE));
+            var header = ((BlockHeader*)(ptr - BlockHeader.SIZE));
             header->CheckCoherency();
             Interlocked.Increment(ref header->ReferenceCount);
+            Forget();
+            _data = ptr;
         }
 
         protected bool ChangeSize(int newSize) {

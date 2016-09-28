@@ -8,7 +8,7 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
             public int _age;
         }
 
-        public class MyClasse_A : VirtualObject<ulong> {
+        public class MyClasse_A : VirtualObject<VOId> {
             private static object _locker = new object();
             private static TypeDescriptor descriptor_A = null;
             private static int NAME;
@@ -18,7 +18,7 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
                 if (descriptor_A == null) {
                     lock (_locker) {
                         if (descriptor_A == null) {
-                            descriptor_A = new TypeDescriptor(base.GetDescriptor(), sizeof(FixedPart_A));
+                            descriptor_A = new TypeDescriptor(base.GetDescriptor(), sizeof(FixedPart_A), new FactoryTypeIdentifier(100,1), typeof(MyClasse_A));
                             NAME = descriptor_A.AddArray(new ArrayDescriptor<char>());
                             POWERS = descriptor_A.AddArray(new ArrayDescriptor<int>());
                         }
@@ -79,7 +79,7 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
                 if (descriptor_B == null) {
                     lock (_locker) {
                         if (descriptor_B == null) {
-                            descriptor_B = new TypeDescriptor(base.GetDescriptor(), sizeof(FixedPart_B));
+                            descriptor_B = new TypeDescriptor(base.GetDescriptor(), sizeof(FixedPart_B), new FactoryTypeIdentifier(200, 1), typeof(MyClasse_B));
                             CITY = descriptor_B.AddArray(new ArrayDescriptor<char>());
                         }
                     }

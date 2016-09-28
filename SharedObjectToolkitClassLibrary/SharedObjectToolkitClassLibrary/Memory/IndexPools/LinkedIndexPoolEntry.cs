@@ -1,4 +1,8 @@
-namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
+/*********************************************************************************
+*   (c) 2009 / Gabriel RABHI
+*   SHARED OBJECT TOOLKIT CLASS LIBRARY
+*********************************************************************************/
+namespace SharedObjectToolkitClassLibrary.Memory.IndexPools {
     public unsafe struct LinkedIndexPoolEntry {
         public int Previous;
         public int Next;

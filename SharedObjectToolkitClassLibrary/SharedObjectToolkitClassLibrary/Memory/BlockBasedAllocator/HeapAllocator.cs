@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿/*********************************************************************************
+*   (c) 2010 - 2016 / Gabriel RABHI
+*   SHARED OBJECT TOOLKIT CLASS LIBRARY
+*********************************************************************************/
+using System;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator {
     public unsafe class HeapAllocator {

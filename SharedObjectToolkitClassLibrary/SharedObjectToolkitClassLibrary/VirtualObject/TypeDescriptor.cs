@@ -66,13 +66,16 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
         private TypeDescriptor _base = null;
         private int _classIndex = 0;
         private int _variablePartCount = 0;
+        private FactoryTypeIdentifier _tid;
 
-        public TypeDescriptor(TypeDescriptor baseDescriptor, int fixedTSize) {
+        public TypeDescriptor(TypeDescriptor baseDescriptor, int fixedTSize, FactoryTypeIdentifier tid, Type realType) {
             _base = baseDescriptor;
             if (_base != null)
                 _arrays.AddRange(_base.Arrays);
             _fixedPartLenght = fixedTSize;
             _classIndex = ClassNumber - 1;
+            _tid = tid;
+            VirtualObjectFactory.RecordType(realType, _tid);
         }
 
         public int InitialSize {
@@ -100,6 +103,8 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
         public int ClassIndex { get { return _classIndex; } }
 
         public int VariablePartCount { get { return _variablePartCount; } }
+
+        public FactoryTypeIdentifier TypeIdentifier { get { return _tid; } }
 
         public SmartPointer Allocate() {
             return new SmartPointer(InitialSize);

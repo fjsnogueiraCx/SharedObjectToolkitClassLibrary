@@ -4,73 +4,89 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BenchmarkApp.Benchmarks;
+using BenchmarkApp.Benchmarks.BlockBasedAllocator;
+using BenchmarkApp.Benchmarks.VirtualObjects;
 using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 using SharedObjectToolkitClassLibrary.Utilities;
 
 namespace BenchmarkApp {
     public unsafe class Program {
-        private static void Main(string[] args) {
-            Parallel.Invoke(
-                () => BenchVirtualObjects(), () => BenchVirtualObjects(), () => BenchVirtualObjects(), () => BenchVirtualObjects()
-                //() => BenchVirtualObjects()
-                );
-            Thread.Sleep(2000);
-            GC.Collect(2, GCCollectionMode.Forced);
-            GC.WaitForPendingFinalizers();
 
-            Console.WriteLine("---------------------------------");
-            Console.WriteLine("Block Count : " + MemoryAllocator.BlockCount);
-            Console.WriteLine("Efficiency Ratio : " + MemoryAllocator.EfficiencyRatio);
-            Console.WriteLine("Segment Count : " + MemoryAllocator.SegmentCount);
-            Console.WriteLine("Total Allocated Memory : " + MemoryAllocator.TotalAllocatedMemory);
-            Console.WriteLine("Lock Failled : " + MemoryAllocator.LockFailed);
-            Console.ReadKey();
+        static void Main(string[] args) {
 
-            //BenchVirtualObjects();
+            MemoryAllocator.LogicalSizeToQueue(16900);
+
+
+            bool shutdown = false;
+            char[] seps = new char[] { ' ' };
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("******** Commands ********");
+            Console.WriteLine(" exit : quit.");
+            Console.WriteLine(" 1 : Bench Virtual Objects Parallel.");
+            Console.WriteLine(" 2 : Bench Allocator New-Free.");
+            Console.WriteLine(" 3 : Bench Allocator Linear New Change Size.");
+            Console.WriteLine(" 4 : Bench Allocator New-Free -> Concurrent.");
+            Console.WriteLine(" 5 : Bench Allocator Linear New Change Size -> Concurrent.");
+            Console.WriteLine(" 6 : Bench Allocator Linear New.");
+            Console.WriteLine(" 7 : Bench Virtual Objects Repository.");
+            Console.WriteLine(" 8 : Bench Virtual Objects Dictionnary recording.");
+            Console.WriteLine("**************************");
+            Console.WriteLine("Enter command :");
+            Console.ResetColor();
+            while (!shutdown) {
+                string userinput = Console.ReadLine();
+                if (!string.IsNullOrEmpty(userinput)) {
+                    try {
+                        string[] parts = userinput.Split(seps);
+
+                        if (!string.IsNullOrEmpty(parts[0])) {
+                            string cmd = parts[0];
+                            switch (cmd.ToLower()) {
+                                case "exit":
+                                    shutdown = true;
+                                    break;
+                                case "1":
+                                    VirtualObjects.BenchVirtualObjectsParallel();
+                                    break;
+                                case "2":
+                                    BenchMemoryAllocator.BenchAllocatorNewFree();
+                                    break;
+                                case "3":
+                                    BenchMemoryAllocator.BenchAllocatorLinearNewChangeSize();
+                                    break;
+                                case "4":
+                                    BenchMemoryAllocator.BenchAllocatorNewFreeConcurrent();
+                                    break;
+                                case "5":
+                                    BenchMemoryAllocator.BenchAllocatorLinearNewChangeSizeConcurrent();
+                                    break;
+                                case "6":
+                                    BenchMemoryAllocator.BenchAllocatorLinearNewFixed();
+                                    break;
+                                case "7":
+                                    VirtualObjects.TestRepository();
+                                    break;
+                                case "8":
+                                    VirtualObjects.TestRepositoryDictionnary();
+                                    break;
+                            }
+                            Console.WriteLine("-------- End of command " + cmd.ToLower());
+                        }
+                    } catch (Exception ex) {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("---------------- EXCEPTION ----------------");
+                        Console.WriteLine(ex.Message);
+                        Console.ForegroundColor = ConsoleColor.Gray;
+                        Console.WriteLine(ex.StackTrace);
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("------------------- END -------------------");
+                        Console.ResetColor();
+                    }
+                }
+            }
         }
 
-        private static void BenchVirtualObjects() {
-            HighPrecisionTimer timer = new HighPrecisionTimer();
-            int n = 0;
-            Console.WriteLine("Start...");
-            timer.Start();
-            do {
-                MyClasse_B B = new MyClasse_B();
-                B.Name = "Gabriel is in the flers and the camps !";
-                B.Name = "Veronique had a small car !";
-                if (B.Name == "Ok")
-                    n = n*2/2;
-                B.A = 65;
-                n++;
-                if (timer.Milliseconds > 1000) {
-                    Console.WriteLine("Iterations : " + n);
-                    break;
-                }
-            } while (true);
-            Console.WriteLine("Stopped !");
-            timer.Stop();
-
-            n = 0;
-            Dictionary<long, MyClasse_B> lst = new Dictionary<long, MyClasse_B>();
-            timer.Reset(true);
-            do {
-                MyClasse_B B2 = new MyClasse_B();
-                B2.Name = "Le monde est jolie ! Le monde il est beau ! Tout le monde s'aime !";
-                B2.A = 65;
-                lst.Add(n, B2);
-                n++;
-                if (timer.Milliseconds > 1000) {
-                    Console.WriteLine("Iterations : " + n);
-                    break;
-                }
-            } while (true);
-            timer.Stop();
-
-            Console.WriteLine("Block Count : " + MemoryAllocator.BlockCount);
-            Console.WriteLine("Efficiency Ratio : " + MemoryAllocator.EfficiencyRatio);
-            Console.WriteLine("Segment Count : " + MemoryAllocator.SegmentCount);
-            Console.WriteLine("Total Allocated Memory : " + MemoryAllocator.TotalAllocatedMemory);
-
-        }
+        
     }
 }

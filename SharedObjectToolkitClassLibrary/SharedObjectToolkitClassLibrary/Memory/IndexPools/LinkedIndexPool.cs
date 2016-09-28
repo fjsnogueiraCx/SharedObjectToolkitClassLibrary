@@ -1,15 +1,19 @@
+/*********************************************************************************
+*   (c) 2009 / Gabriel RABHI
+*   SHARED OBJECT TOOLKIT CLASS LIBRARY
+*********************************************************************************/
 using System;
 using System.Collections.Generic;
 using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
-namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
-    public unsafe class LinkedIndexPool {
+namespace SharedObjectToolkitClassLibrary.Memory.IndexPools {
+    public unsafe struct LinkedIndexPool {
         private LinkedIndexPoolEntry* _entries;
         private LinkedIndexPoolQueue* _queues;
         private int _capacity;
         private int _queueCount;
         private StackedIndexPoolUnsafe _queueStack;
-        private bool checkIt = false;
+        private bool _checkIt;
 
         public LinkedIndexPool(int capacity, int queueCount, bool check = false) {
             if (capacity < 8)
@@ -41,19 +45,16 @@ namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
             // -------- Initialize queues stack
             _queueStack = new StackedIndexPoolUnsafe(queueCount, 2);
             // -------- All is ok...
-            checkIt = check;
+            _checkIt = check;
         }
 
-        public void Dispose() {
-            if (_queueStack != null) {
+        public void Release() {
+            if (_capacity>0) {
                 HeapAllocator.Free((byte*) _entries);
                 HeapAllocator.Free((byte*) _queues);
-                _queueStack = null;
+                _queueStack.Release();
+                _capacity = -1;
             }
-        }
-
-        ~LinkedIndexPool() {
-            Dispose();
         }
 
         public int Capacity { get { return _capacity; } }
@@ -136,7 +137,7 @@ namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
         }
 
         private void CheckCoherency() {
-            if (!checkIt)
+            if (!_checkIt)
                 return;
             for (int i = 0; i < Capacity; i++) {
                 LinkedIndexPoolEntry e = _entries[i];

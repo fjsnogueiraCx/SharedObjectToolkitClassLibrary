@@ -1,11 +1,15 @@
-﻿using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
+﻿/*********************************************************************************
+*   (c) 2009 / Gabriel RABHI
+*   SHARED OBJECT TOOLKIT CLASS LIBRARY
+*********************************************************************************/
+using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
-namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
-    public unsafe class StackedIndexPoolUnsafe {
+namespace SharedObjectToolkitClassLibrary.Memory.IndexPools {
+    public unsafe struct StackedIndexPoolUnsafe {
         private int* _entries;
         private int _bottom;
-        private int _capacity = 0;
-        private int _idOffset = 0;
+        private int _capacity;
+        private int _idOffset;
 
         public StackedIndexPoolUnsafe(int capacity, int idOffset) {
             _idOffset = idOffset;
@@ -16,15 +20,11 @@ namespace SharedObjectToolkitClassLibrary.Memory.LinkedIndexPool {
             _capacity = capacity;
         }
 
-        public void Dispose() {
+        public void Release() {
             if (_entries != null) {
                 HeapAllocator.Free((byte*)_entries);
                 _entries = null;
             }
-        }
-
-        ~StackedIndexPoolUnsafe() {
-            Dispose();
         }
 
         private void EnsureCpacity(int n) {

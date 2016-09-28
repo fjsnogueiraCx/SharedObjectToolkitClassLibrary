@@ -7,7 +7,7 @@ using SharedObjectToolkitClassLibrary.Memory;
 using SharedObjectToolkitClassLibrary.Memory.BlockBasedAllocator;
 
 namespace SharedObjectToolkitClassLibrary.VirtualObject {
-    public unsafe class VirtualObject<TKey> : SmartPointer where TKey : struct {
+    public unsafe class VirtualObject<TKey> : SmartPointer where TKey : struct, IULongConvertible {
         private TypeDescriptor _descriptor = null;
         private bool _delleted = false;
         private TKey _id = default(TKey);
@@ -15,24 +15,30 @@ namespace SharedObjectToolkitClassLibrary.VirtualObject {
         protected TypeDescriptor InstanceTypeDescriptor { get { return _descriptor; } }
 
         protected virtual TypeDescriptor GetDescriptor() {
-            return new TypeDescriptor(null, 0);
+            return new TypeDescriptor(null, 0, new FactoryTypeIdentifier(0,0), typeof(VirtualObject<TKey>));
         }
 
         public VirtualObject() {
             _descriptor = GetDescriptor();
+            NewVersion();
         }
 
+        public VirtualObject(IntPtr data) {
+            _descriptor = GetDescriptor();
+            Force((byte*)data);
+        }
 
         protected void NewVersion(bool clearFixed = false, bool clearAll = false) {
             if (_data == null) {
                 Allocate(_descriptor.InitialSize, true);
+                MemoryAllocator.SetTypeIdentifierOf(_data, _descriptor.TypeIdentifier);
                 if (!clearAll && clearFixed)
                     MemoryHelper.Fill(_data, 0x00, _descriptor.FixedPartLenght);
                 else if (clearAll) MemoryHelper.Fill(_data, 0x00, MemoryAllocator.SizeOf(_data));
                 for (int i = 0; i < _descriptor.VariablePartCount; i++)
                     ArrayRecords[i] = new InBlockArrayRecord() {Lenght = 0, Offset = _descriptor.InitialSize};
             } else {
-                var header = ((SegmentHeader*) (_data - SegmentHeader.SIZE));
+                var header = ((BlockHeader*) (_data - BlockHeader.SIZE));
                 if (header->ReferenceCount > 1) {
                     var tmp = MemoryHelper.Clone(_data, false);
                     Force(tmp);

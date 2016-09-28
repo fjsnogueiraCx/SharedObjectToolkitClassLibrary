@@ -1,4 +1,8 @@
-﻿using System;
+﻿/*********************************************************************************
+*   (c) 2009 / Gabriel RABHI
+*   SHARED OBJECT TOOLKIT CLASS LIBRARY
+*********************************************************************************/
+using System;
 using System.Diagnostics;
 using System.Threading;
 
